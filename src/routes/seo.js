@@ -26,9 +26,12 @@ const STATIC_PAGES = [
   ['/policies/food-safety', 'yearly', '0.2'],
 ];
 
+// SITE_URL if set, otherwise the domain this request was made on (works behind a proxy/rewrite).
+const siteUrlOf = (req) => config.siteUrl || `${req.protocol}://${req.get('x-forwarded-host') || req.get('host')}`;
+
 const xmlEscape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-router.get('/robots.txt', (_req, res) => {
+router.get('/robots.txt', (req, res) => {
   res.type('text/plain').set('Cache-Control', 'public, max-age=3600').send(
     [
       'User-agent: *',
@@ -39,7 +42,7 @@ router.get('/robots.txt', (_req, res) => {
       'Disallow: /api/',
       'Disallow: /shop?q=',
       '',
-      `Sitemap: ${config.siteUrl}/sitemap.xml`,
+      `Sitemap: ${siteUrlOf(req)}/sitemap.xml`,
       '',
     ].join('\n'),
   );
@@ -47,7 +50,8 @@ router.get('/robots.txt', (_req, res) => {
 
 router.get(
   '/sitemap.xml',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const siteUrl = siteUrlOf(req);
     const [products, categories, productCounts] = await Promise.all([
       Product.find({ status: 'published' }).select('slug updatedAt images name').lean(),
       Category.find({ isActive: true }).select('slug updatedAt').lean(),
@@ -58,7 +62,7 @@ router.get(
     const url = (loc, { lastmod, changefreq, priority, images = [] } = {}) =>
       [
         '  <url>',
-        `    <loc>${xmlEscape(config.siteUrl + loc)}</loc>`,
+        `    <loc>${xmlEscape(siteUrl + loc)}</loc>`,
         lastmod ? `    <lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : '',
         changefreq ? `    <changefreq>${changefreq}</changefreq>` : '',
         priority ? `    <priority>${priority}</priority>` : '',
@@ -78,7 +82,7 @@ router.get(
           lastmod: p.updatedAt,
           changefreq: 'weekly',
           priority: '0.8',
-          images: (p.images || []).map((i) => (/^https?:/.test(i.url) ? i.url : config.siteUrl + i.url)),
+          images: (p.images || []).map((i) => (/^https?:/.test(i.url) ? i.url : siteUrl + i.url)),
         }),
       ),
     ];

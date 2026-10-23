@@ -1,14 +1,20 @@
 const env = process.env;
 
+function corsOrigins(values) {
+  const list = values.flatMap((v) => v.split(',')).map((v) => v.trim().replace(/\/$/, '')).filter(Boolean);
+  return list.includes('*') ? true : list;
+}
+
 export const config = {
   port: Number(env.PORT || 5000),
   isProd: env.NODE_ENV === 'production',
   mongoUri: env.MONGODB_URI || '',
   jwtSecret: env.JWT_SECRET || '',
-  // Public storefront URL, used in sitemap.xml and robots.txt
-  siteUrl: (env.SITE_URL || env.WEBSITE_ORIGIN || 'http://localhost:5173').replace(/\/$/, ''),
+  // Public storefront URL, used in sitemap.xml and robots.txt. Empty = use the domain the request came in on.
+  siteUrl: (env.SITE_URL || '').replace(/\/$/, ''),
   // Browser origins allowed to call the API (website and admin panel are deployed separately).
-  corsOrigins: [env.WEBSITE_ORIGIN || 'http://localhost:5173', env.ADMIN_ORIGIN || 'http://localhost:5174'],
+  // `*` allows any domain; otherwise a comma-separated list of origins.
+  corsOrigins: corsOrigins([env.WEBSITE_ORIGIN || 'http://localhost:5173', env.ADMIN_ORIGIN || 'http://localhost:5174']),
   razorpay: {
     keyId: env.RAZORPAY_KEY_ID || '',
     keySecret: env.RAZORPAY_KEY_SECRET || '',
